@@ -485,7 +485,7 @@ async def adm_lose_process(message: Message, state: FSMContext):
                 json={"user_id": uid, "action": action, "lose_percent": pct or None})
         await state.clear()
         await message.answer(
-            f"✅ User {uid}: {'foiz ochirildi' if pct==0 else f'{pct}% qo\\'yildi'}")
+            f"✅ User {uid}: {'foiz ochirildi' if pct==0 else f'{pct}% qoyildi'}")
     except Exception as e:
         await message.answer(f"❌ Xatolik: {e}")
 
