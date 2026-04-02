@@ -282,7 +282,7 @@ async def process_deposit_amount(message: Message, state: FSMContext):
             except Exception:
                 pass
     else:
-        await message.answer(f"❌ Xatolik: {data.get('message', 'Noma\\'lum xato')}")
+        await message.answer(f"❌ Xatolik: {data.get('message', 'Nomalum xato')}")
 
 @router.callback_query(F.data.startswith("confirm_dep_"))
 async def confirm_deposit_cb(callback: CallbackQuery):
