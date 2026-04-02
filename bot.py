@@ -80,7 +80,7 @@ async def _register(telegram_id: int, username: str = None):
     # Bu holda uni qayta olish
     if r.status_code == 400:
         async with httpx.AsyncClient(timeout=10) as c:
-            r2 = await c.get(f"{API_BASE}/admin/user_by_tg/{telegram_id}",
+            r2 = await c.get(f"{API_BASE}/auth/user_by_tg/{telegram_id}",
                              headers={"X-Admin-Token": ADMIN_TOKEN})
             if r2.status_code == 200:
                 return r2.json(), None, None  # Mavjud user — login/parol BERMAYDI
@@ -94,7 +94,7 @@ async def get_or_create(telegram_id: int, username: str = None):
     """
     try:
         async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get(f"{API_BASE}/admin/user_by_tg/{telegram_id}",
+            r = await c.get(f"{API_BASE}/auth/user_by_tg/{telegram_id}",
                             headers={"X-Admin-Token": ADMIN_TOKEN})
         print(f"[DEBUG] user_by_tg/{telegram_id} → status={r.status_code} body={r.text[:200]}")
         if r.status_code == 200:
