@@ -227,7 +227,7 @@ async def process_deposit_amount(message: Message, state: FSMContext):
         return
 
     if data.get("status") != "success":
-        await message.answer(f"❌ Xatolik: {data.get('message', 'Noma\\'lum xato')}")
+        await message.answer(f"❌ Xatolik: {data.get('message', 'Nomalum xato')}")
         return
 
     order_id = data["order"]
