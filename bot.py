@@ -178,15 +178,22 @@ async def balance_handler(message: Message):
 async def profile_handler(message: Message):
     user, _, _ = await get_or_create(message.from_user.id)
     reg = user.get("created_at","")[:10] or "—"
+    # Parolni DB dan olish imkoni yo'q (hash saqlanadi), shuning uchun
+    # foydalanuvchi o'z parolini ko'rishi uchun uni FSM da saqlab, /start da berganmiz
+    # Lekin agar kerak bo'lsa — parolni reset qilish tugmasi qo'shamiz
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Parolni yangilash", callback_data=f"reset_pw_{message.from_user.id}")]
+    ])
     await message.answer(
         f"👤 <b>Profil</b>\n\n"
         f"🆔 TG ID: <code>{message.from_user.id}</code>\n"
         f"🔑 Login: <code>{user.get('login','')}</code>\n"
+        f"🔐 Parol: <i>Xavfsizlik uchun ko'rsatilmaydi</i>\n"
         f"💰 Balans: <b>{user.get('balance',0):,.0f} so'm</b>\n"
         f"✅ Yutuq: {user.get('total_won',0):,.0f} so'm\n"
         f"❌ Yutqazish: {user.get('total_lost',0):,.0f} so'm\n"
         f"📅 Ro'yxat: {reg}",
-        parse_mode="HTML"
+        parse_mode="HTML", reply_markup=kb
     )
 
 @router.message(F.text == "📊 Tarix")
@@ -309,6 +316,39 @@ async def check_payment_cb(cb: CallbackQuery):
         await cb.answer(f"⚠️ Holat: {status}", show_alert=True)
 
 # cdep_/rdep_ handlerlari olib tashlandi — to'ldirish to'liq avtomatik
+
+@router.callback_query(F.data.startswith("reset_pw_"))
+async def reset_password_cb(cb: CallbackQuery):
+    """Yangi parol yaratib berish"""
+    tg_id = int(cb.data.split("_")[2])
+    if cb.from_user.id != tg_id:
+        await cb.answer("❌ Bu sizning profilingiz emas!", show_alert=True)
+        return
+
+    # Yangi parol yaratish
+    new_pw = "".join(random.choices(string.ascii_letters + string.digits + "!@#", k=10))
+    new_hash = hash_pw(new_pw)
+
+    # Backendga yangilash so'rovi
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.post(f"{API_BASE}/auth/update_password",
+                headers={"X-Admin-Token": ADMIN_TOKEN},
+                json={"telegram_id": tg_id, "password_hash": new_hash})
+            if r.status_code != 200:
+                await cb.answer("❌ Xatolik yuz berdi", show_alert=True)
+                return
+    except Exception:
+        await cb.answer("❌ Server bilan bog'lanib bo'lmadi", show_alert=True)
+        return
+
+    await cb.answer("✅ Yangi parol yaratildi!", show_alert=False)
+    await cb.message.answer(
+        f"🔐 <b>Yangi parolingiz:</b>\n\n"
+        f"<code>{new_pw}</code>\n\n"
+        f"⚠️ Eski parol endi ishlamaydi. Saqlang!",
+        parse_mode="HTML"
+    )
 
 # ── FIX #3: YECHISH ───────────────────────────────────────────────────
 @router.message(F.text == "➖ Yechish")
