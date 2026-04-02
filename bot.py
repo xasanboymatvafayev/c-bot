@@ -73,18 +73,39 @@ async def _register(telegram_id: int, username: str = None):
             headers={"X-Admin-Token": ADMIN_TOKEN},
             json={"telegram_id": telegram_id, "username": username,
                   "login": login, "password_hash": pw_hash})
-        return r.json(), login, password
+        print(f"[DEBUG] register/{telegram_id} → status={r.status_code} body={r.text[:200]}")
+        resp = r.json()
+
+    # Agar 400 — user allaqachon mavjud (race condition)
+    # Bu holda uni qayta olish
+    if r.status_code == 400:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r2 = await c.get(f"{API_BASE}/admin/user_by_tg/{telegram_id}",
+                             headers={"X-Admin-Token": ADMIN_TOKEN})
+            if r2.status_code == 200:
+                return r2.json(), None, None  # Mavjud user — login/parol BERMAYDI
+
+    return resp, login, password
 
 async def get_or_create(telegram_id: int, username: str = None):
     """
-    FIX #1: Mavjud user → (data, None, None)  — login/parol BERMAYDI
-             Yangi user → (data, login, password)
+    Mavjud user → (data, None, None)  — login/parol BERMAYDI
+    Yangi user  → (data, login, password)
     """
-    async with httpx.AsyncClient(timeout=10) as c:
-        r = await c.get(f"{API_BASE}/admin/user_by_tg/{telegram_id}",
-                        headers={"X-Admin-Token": ADMIN_TOKEN})
-    if r.status_code == 200:
-        return r.json(), None, None
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.get(f"{API_BASE}/admin/user_by_tg/{telegram_id}",
+                            headers={"X-Admin-Token": ADMIN_TOKEN})
+        print(f"[DEBUG] user_by_tg/{telegram_id} → status={r.status_code} body={r.text[:200]}")
+        if r.status_code == 200:
+            data = r.json()
+            # Javob dict va id maydoni bor — haqiqiy user
+            if isinstance(data, dict) and data.get("id"):
+                return data, None, None
+        # 404 yoki boshqa xato → yangi user yaratish
+    except Exception as e:
+        print(f"[DEBUG] get_or_create exception: {e}")
+
     return await _register(telegram_id, username)
 
 def main_kb():
